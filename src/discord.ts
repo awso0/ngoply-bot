@@ -27,20 +27,6 @@ export class DiscordNotifier {
     }
   }
 
-  async sendStatusMessage(message: string, isError = false): Promise<void> {
-    const payload: DiscordWebhookPayload = {
-      username: config.discord.botName,
-      // avatar_url removed - using Discord default
-      content: `${isError ? '❌' : '📊'} **${config.discord.botName}**: ${message}`,
-    };
-
-    try {
-      await axios.post(this.webhookUrl, payload);
-    } catch (error) {
-      console.error('❌ Failed to send status message:', error);
-    }
-  }
-
   private createTweetEmbed(tweet: Tweet): DiscordEmbed {
     const embed: DiscordEmbed = {
       title: `🐦 New #${config.monitoring.hashtag} mention found!`,
@@ -54,7 +40,7 @@ export class DiscordNotifier {
       },
       footer: {
         text: 'Ngoply Hashtag Monitor',
-        icon_url: config.discord.avatarUrl,
+        // Remove icon_url to avoid invalid relative path
       },
     };
 
@@ -68,7 +54,7 @@ export class DiscordNotifier {
             `🔄 ${tweet.metrics.retweetCount} retweets`,
             `💬 ${tweet.metrics.replyCount} replies`,
             `📝 ${tweet.metrics.quoteCount} quotes`,
-          ].join('\\n'),
+          ].join('\n'),
           inline: true,
         },
         {

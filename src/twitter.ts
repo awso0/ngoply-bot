@@ -6,7 +6,6 @@ import { config } from './config.js';
 export class TwitterMonitor {
   private bearerToken: string;
   private baseUrl = 'https://api.twitter.com/2';
-  private lastTweetId: string | null = null;
 
   constructor(bearerToken: string) {
     this.bearerToken = bearerToken;
@@ -31,40 +30,19 @@ export class TwitterMonitor {
       'expansions': 'author_id,attachments.media_keys',
     });
 
-    // Add today filter if enabled
-    if (config.monitoring.todayOnly) {
-      // Get today's date in configured timezone and convert to UTC
-      const today = new Date();
-      const timezoneOffset = config.monitoring.timezoneOffset * 60; // Convert hours to minutes
-      const nowInLocalTz = new Date(today.getTime() + (timezoneOffset * 60 * 1000));
-      
-      // Set to start of day in local timezone, then convert back to UTC
-      const startOfDayLocal = new Date(nowInLocalTz.getFullYear(), nowInLocalTz.getMonth(), nowInLocalTz.getDate());
-      const startTime = new Date(startOfDayLocal.getTime() - (timezoneOffset * 60 * 1000)).toISOString();
-      
-      params.append('start_time', startTime);
-    }
-
-    // Add since_id to get only new tweets since last check
-    if (this.lastTweetId) {
-      params.append('since_id', this.lastTweetId);
-    }
+    // Use time-based filtering instead of since_id/until_id
+    const maxAgeHours = config.monitoring.maxAgeHours;
+    const now = new Date();
+    
+    // Twitter API requires end_time to be at least 10 seconds before current time
+    const endTime = new Date(now.getTime() - 30 * 1000).toISOString(); // 30 seconds ago
+    const startTime = new Date(now.getTime() - (maxAgeHours * 60 * 60 * 1000)).toISOString(); // X hours ago
+    
+    params.append('start_time', startTime);
+    params.append('end_time', endTime);
 
     try {
-      if (config.monitoring.todayOnly) {
-        const today = new Date();
-        const timezoneOffset = config.monitoring.timezoneOffset * 60;
-        const nowInLocalTz = new Date(today.getTime() + (timezoneOffset * 60 * 1000));
-        const localDate = nowInLocalTz.toLocaleDateString('id-ID', { 
-          timeZone: 'Asia/Jakarta',
-          year: 'numeric', 
-          month: '2-digit', 
-          day: '2-digit' 
-        });
-        console.log(`🔍 Searching tweets for #${hashtag} (hari ini: ${localDate} UTC+${config.monitoring.timezoneOffset})`);
-      } else {
-        console.log(`🔍 Searching tweets for #${hashtag} (semua waktu)`);
-      }
+      console.log(`🔍 Searching tweets for #${hashtag} (last ${config.monitoring.maxAgeHours} hour(s))`);
       
       const response = await axios.get(`${searchUrl}?${params.toString()}`, {
         headers: {
@@ -77,17 +55,14 @@ export class TwitterMonitor {
       const data = response.data;
       
       if (!data.data || data.data.length === 0) {
-        console.log(`ℹ️ No new tweets found for #${hashtag} today`);
+        console.log(`ℹ️ No new tweets found for #${hashtag} in the last ${config.monitoring.maxAgeHours} hour(s)`);
         return [];
       }
-
-      // Update last tweet ID
-      this.lastTweetId = data.data[0].id;
 
       // Transform Twitter API response to our Tweet format
       const tweets = this.transformTweets(data);
       
-      console.log(`🔍 Found ${tweets.length} new tweets for #${hashtag} today`);
+      console.log(`🔍 Found ${tweets.length} tweets within last ${config.monitoring.maxAgeHours} hour(s) for #${hashtag}`);
       return tweets;
 
     } catch (error: any) {

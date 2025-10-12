@@ -22,6 +22,7 @@ export interface Config {
     enableTiktok: boolean;
     timezoneOffset: number;
     todayOnly: boolean;
+    maxAgeHours: number;
   };
   advanced: {
     logLevel: 'error' | 'warn' | 'info' | 'debug';

@@ -28,6 +28,7 @@ export const config: Config = {
     enableTiktok: process.env.ENABLE_TIKTOK === 'true',
     timezoneOffset: parseInt(process.env.TIMEZONE_OFFSET || '7', 10), // Default: WIB (UTC+7)
     todayOnly: process.env.TODAY_ONLY !== 'false', // Default: true
+    maxAgeHours: parseInt(process.env.MAX_AGE_HOURS || '1', 10), // Default: 1 hour
   },
   advanced: {
     logLevel: (process.env.LOG_LEVEL as any) || 'info',

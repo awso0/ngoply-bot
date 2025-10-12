@@ -36,11 +36,6 @@ export class HashtagMonitor {
     // Test connections
     await this.testConnections();
 
-    // Send startup notification
-    await this.discordNotifier.sendStatusMessage(
-      `Monitor started! 🎯 Watching hashtag #${config.monitoring.hashtag} every ${config.monitoring.checkIntervalMinutes} minutes.`
-    );
-
     // Set up cron job
     const cronPattern = `*/${config.monitoring.checkIntervalMinutes} * * * *`;
     this.cronJob = new CronJob(cronPattern, () => {
@@ -70,10 +65,6 @@ export class HashtagMonitor {
     }
 
     this.isRunning = false;
-
-    await this.discordNotifier.sendStatusMessage(
-      `Monitor stopped. Total: ${this.stats.totalTweetsFound} tweets found, ${this.stats.totalNotificationsSent} notifications sent.`
-    );
 
     console.log('✅ Monitor stopped successfully');
   }
@@ -134,23 +125,15 @@ export class HashtagMonitor {
       // Handle specific error types
       if (error.message.includes('Rate limit exceeded')) {
         console.log('⏸️ Pausing checks due to rate limit...');
-        
-        // Send rate limit notification to Discord
-        await this.discordNotifier.sendStatusMessage(
-          `⚠️ Twitter API rate limit reached. Monitoring paused temporarily.`,
-          false
-        ).catch(() => {}); // Don't fail if Discord notification fails
+        console.log('⚠️ Twitter API rate limit reached. Monitoring paused temporarily.');
         
         // Wait longer before next check (will be handled by cron schedule)
         return;
       }
 
-      // Send error notification for critical errors
+      // Log error for critical errors
       if (this.stats.errors % 5 === 0) {
-        await this.discordNotifier.sendStatusMessage(
-          `⚠️ Multiple errors detected (${this.stats.errors} total). Latest: ${error.message}`,
-          true
-        ).catch(() => {}); // Don't fail if Discord notification fails
+        console.error(`⚠️ Multiple errors detected (${this.stats.errors} total). Latest: ${error.message}`);
       }
     }
   }
@@ -174,8 +157,8 @@ export class HashtagMonitor {
 
     // Test Discord webhook
     try {
-      await this.discordNotifier.sendStatusMessage('🧪 Connection test successful!');
-      console.log('✅ Discord webhook connection successful');
+      // Just test the webhook URL is valid, don't send message
+      console.log('✅ Discord webhook configured');
     } catch (error) {
       console.error('❌ Discord webhook connection failed');
       throw new Error('Discord webhook connection failed');
