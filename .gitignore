@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.env
+*.log
+.DS_Store
+.vscode/
+.idea/
+*.tgz
+*.tar.gz
+coverage/
+.nyc_output/
+*.pid
+*.seed
+*.pid.lock
+.npm
+.eslintcache
+.cache/
