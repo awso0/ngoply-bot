@@ -2,17 +2,20 @@ import { CronJob } from 'cron';
 import { TwitterMonitor } from './twitter.js';
 import { DiscordNotifier } from './discord.js';
 import { config, validateConfig } from './config.js';
+import { TweetHistoryManager } from './utils/TweetHistoryManager.js';
 import type { MonitorStats, Tweet } from './types.js';
 
 export class HashtagMonitor {
   private twitterMonitor: TwitterMonitor | null = null;
   private discordNotifier: DiscordNotifier;
+  private tweetHistory: TweetHistoryManager;
   private cronJob: CronJob | null = null;
   private stats: MonitorStats;
   private isRunning = false;
 
   constructor() {
     this.discordNotifier = new DiscordNotifier(config.discord.webhookUrl);
+    this.tweetHistory = new TweetHistoryManager();
     this.stats = {
       totalChecks: 0,
       totalTweetsFound: 0,
@@ -91,27 +94,40 @@ export class HashtagMonitor {
       // TODO: Add Instagram and TikTok monitoring here
 
       if (newTweets.length > 0) {
-        console.log(`📈 Found ${newTweets.length} new mentions!`);
-        this.stats.totalTweetsFound += newTweets.length;
+        // Filter tweet yang belum pernah dikirim
+        const unsentTweets = newTweets.filter(tweet => !this.tweetHistory.isTweetSent(tweet.id));
+        
+        if (unsentTweets.length > 0) {
+          console.log(`📈 Found ${newTweets.length} mentions (${unsentTweets.length} new, ${newTweets.length - unsentTweets.length} already sent)`);
+          this.stats.totalTweetsFound += unsentTweets.length;
 
-        // Send notifications for each new tweet
-        for (const tweet of newTweets) {
-          try {
-            await this.discordNotifier.sendTweetNotification(tweet);
-            this.stats.totalNotificationsSent++;
-            
-            // Rate limiting
-            if (config.advanced.rateLimitDelay > 0) {
-              await this.sleep(config.advanced.rateLimitDelay);
+          // Send notifications for each new tweet
+          for (const tweet of unsentTweets) {
+            try {
+              await this.discordNotifier.sendTweetNotification(tweet);
+              
+              // Tandai tweet sebagai sudah dikirim
+              this.tweetHistory.markTweetAsSent(tweet.id);
+              this.stats.totalNotificationsSent++;
+              
+              // Rate limiting
+              if (config.advanced.rateLimitDelay > 0) {
+                await this.sleep(config.advanced.rateLimitDelay);
+              }
+            } catch (error) {
+              console.error(`❌ Failed to send notification for tweet ${tweet.id}:`, error);
+              this.stats.errors++;
             }
-          } catch (error) {
-            console.error(`❌ Failed to send notification for tweet ${tweet.id}:`, error);
-            this.stats.errors++;
           }
+        } else {
+          console.log(`📭 Found ${newTweets.length} mentions but all have been sent already`);
         }
       } else {
         console.log('📭 No new mentions found');
       }
+
+      // Cleanup history secara berkala
+      this.tweetHistory.cleanupOldHistory();
 
       // Log stats every 10 checks
       if (this.stats.totalChecks % 10 === 0) {
@@ -174,10 +190,13 @@ export class HashtagMonitor {
   }
 
   private logStats(): void {
+    const historyStats = this.tweetHistory.getStats();
+    
     console.log('\\n📊 Monitor Statistics:');
     console.log(`   Total checks: ${this.stats.totalChecks}`);
     console.log(`   Tweets found: ${this.stats.totalTweetsFound}`);
     console.log(`   Notifications sent: ${this.stats.totalNotificationsSent}`);
+    console.log(`   Tweet history size: ${historyStats.totalSent}`);
     console.log(`   Errors: ${this.stats.errors}`);
     console.log(`   Last check: ${this.stats.lastCheckTime.toLocaleString()}`);
     console.log(`   Running since: ${this.formatUptime()}`);

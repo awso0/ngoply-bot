@@ -39,7 +39,7 @@ export class DiscordNotifier {
         icon_url: tweet.author.profileImageUrl,
       },
       footer: {
-        text: 'Ngoply Hashtag Monitor',
+        text: 'Stay health my loafff',
         // Remove icon_url to avoid invalid relative path
       },
     };

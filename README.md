@@ -7,6 +7,8 @@ Monitor hashtag #ngoply on social media platforms and send real-time notificatio
 - ✅ Real-time hashtag monitoring
 - ✅ Discord webhook notifications
 - ✅ Twitter/X API integration
+- ✅ Duplicate tweet prevention (tidak akan mengirim tweet yang sama dua kali)
+- ✅ Automatic history cleanup
 - ✅ Configurable check intervals
 - ✅ TypeScript + Vite powered
 - ✅ Easy deployment
@@ -43,6 +45,23 @@ npm run start:dev
 
 See `.env.example` for all available configuration options.
 
-## 📝 License
+## � Tweet History
+
+Bot secara otomatis menyimpan history tweet yang sudah dikirim di file `tweet-history.json` untuk mencegah duplikasi. File ini akan:
+- Dibuat otomatis saat pertama kali bot berjalan
+- Menyimpan maksimal 1000 tweet ID terbaru
+- Dibersihkan otomatis setiap 24 jam
+- Tidak di-commit ke git (sudah ada di .gitignore)
+
+Untuk mereset history (mengirim ulang semua tweet), hapus file `tweet-history.json`.
+
+## 🧪 Testing
+
+Test tweet history manager:
+```bash
+npm run build && node dist/test/test-history.js
+```
+
+## �📝 License
 
 MIT
